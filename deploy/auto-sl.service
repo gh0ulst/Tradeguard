@@ -1,0 +1,26 @@
+[Unit]
+Description=MyFundedPerps automatic stop-loss watcher
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=autosl
+Group=autosl
+WorkingDirectory=/opt/auto-sl
+ExecStart=/opt/auto-sl/.venv/bin/python -u /opt/auto-sl/auto_sl.py --execute --unattended
+Restart=on-failure
+RestartSec=60
+RestartPreventExitStatus=42
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/auto-sl
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

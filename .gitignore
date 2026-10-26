@@ -1,0 +1,56 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+.envrc
+.secrets/
+secrets/
+credentials/
+credentials.*
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# Python environments and generated files
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Trading runtime state and logs
+auto_sl_state.json
+auto_sl_attempts.json
+*trading*state*.json
+*position*state*.json
+*attempts*.json
+logs/
+*.log
+
+# Local backups, editor settings, and operating-system files
+*.bak
+*.bak-*
+*.backup
+*.backup-*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
