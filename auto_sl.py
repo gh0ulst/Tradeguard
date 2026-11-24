@@ -1,9 +1,8 @@
-"""MyFundedPerps automatic SL watcher for open positions and resting entry orders.
+"""Tradeguard automatic stop-loss watcher for MyFundedPerps positions.
 Default: read-only.
 Live writes require both --execute and AUTO_SL_EXECUTE=true plus terminal confirmation.
 Scope one exact account. No blind retries; persistent journal prevents repeated attempts.
-Optional Discord alerts use DISCORD_WEBHOOK_URL and never block order management.
-"""
+Optional Discord alerts use DISCORD_WEBHOOK_URL and never block order management."""
 import argparse
 import atexit
 import json

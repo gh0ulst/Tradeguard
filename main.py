@@ -1,4 +1,4 @@
-"""MyFundedPerps read-only SL monitor and DRY-RUN request preview. No HTTP writes."""
+"""Tradeguard read-only MyFundedPerps stop-loss monitor and dry-run preview."""
 import argparse
 import json
 import os

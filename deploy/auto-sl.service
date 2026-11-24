@@ -1,5 +1,5 @@
 [Unit]
-Description=MyFundedPerps automatic stop-loss watcher
+Description=Tradeguard automatic stop-loss watcher for MyFundedPerps
 Wants=network-online.target
 After=network-online.target
 StartLimitIntervalSec=600

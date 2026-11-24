@@ -1,126 +1,210 @@
-# MyFundedPerps Auto-SL
+# Tradeguard
 
-Python tools for monitoring MyFundedPerps accounts and managing protective
-stop-loss orders. The project includes a read-only monitor, an optional
-automatic stop manager, a one-attempt stop test, and unit tests.
+**Automated Stop-Loss Monitoring and Management for MyFundedPerps**
 
-> **Trading risk:** `auto_sl.py` can submit or update live orders when its
-> explicit execution safeguards are enabled. This can affect funds, competition
-> results, or account eligibility. Start in read-only mode, review every
-> configuration value, and confirm that API automation is permitted for your
-> account. This software is provided without a guarantee that an exchange API,
-> quote, or protective order will be available or correct.
+Tradeguard is a Python-based risk-management tool designed to help traders monitor open positions and manage protective stop-loss orders through the MyFundedPerps API.
+
+It combines read-only position monitoring with optional automated stop management, including initial stop placement, break-even protection, and trailing-stop adjustments.
+
+The goal is simple: make protective stop management more consistent, reduce manual oversight, and fail safely when account or order information is ambiguous.
+
+> [!WARNING]
+> **Trading risk:** Tradeguard can submit or modify live orders when its execution safeguards are deliberately enabled. This can affect funds, competition results, and account eligibility. Always begin in read-only mode, verify account permissions, and independently confirm that API automation is permitted by your trading provider. Tradeguard is provided as-is and does not guarantee successful order execution.
 
 ## Features
 
-- `main.py` scans accounts, positions, and working orders using read-only API
-  requests. It reports stop status and can print a dry-run request preview; it
-  does not submit trading requests.
-- `auto_sl.py` scopes the watcher to one exact account, checks protective-stop
-  coverage, and supports initial stops, break-even management, and trailing-stop
-  updates. It rechecks state before writes, avoids blind retries, and records
-  attempted writes and management state in local JSON files.
-- Optional Discord alerts report issues without including the webhook URL.
-- `one_shot_sl.py` supports a single, separately confirmed stop placement
-  attempt for a specified position.
-- `get_position_id.py` reads account and position identifiers for local setup.
-- `launchd_runner.py` suppresses automatic restarts after a safety halt.
-  `deploy/auto-sl.service` is a systemd unit example; review its live-execution
-  settings before using it.
+- **Position Monitoring:** Inspects open positions and working orders.
+- **Initial Stop-Loss Planning:** Calculates proposed stop prices using entry price, configured risk percentage, and market tick size.
+- **Break-Even Protection:** Supports moving eligible stop-loss orders toward entry after a configurable profit threshold.
+- **Trailing Stop Management:** Supports tightening stops as a position moves favorably.
+- **Protective Order Validation:** Checks position and order details before treating a stop as valid protection.
+- **Execution Safeguards:** Uses fresh account snapshots, pre-write checks, and persistent attempt records to avoid blind retries.
+- **Discord Notifications:** Optional alerts for important account and stop-management events.
+- **Local State Management:** Stores management state and previous write attempts locally.
 
-## Requirements
+## Project Structure
 
-- Python 3.9 or newer
-- MyFundedPerps API access
-- Dependencies from [`requirements.txt`](./requirements.txt)
+| File                 | Description                                               |
+| -------------------- | --------------------------------------------------------- |
+| `main.py`            | Read-only account and stop-loss monitor                   |
+| `auto_sl.py`         | Automated stop-loss watcher and manager                   |
+| `one_shot_sl.py`     | Preview-first utility for a single stop-placement attempt |
+| `get_position_id.py` | Retrieves account and position identifiers                |
+| `launchd_runner.py`  | macOS background-process supervisor                       |
+| `openapi.yaml`       | API specification reference                               |
+| `tests/`             | Automated tests using mocked API interactions             |
+| `deploy/`            | Example Linux systemd service configuration               |
 
-## Setup
+## Technology
 
-Run these commands from the project directory:
+- Python
+- MyFundedPerps REST API
+- Requests
+- Python-dotenv
+- Unit testing with mocked API responses
 
-```sh
+## Installation
+
+Clone the repository:
+
+```
+git clone https://github.com/gh0ulst/Tradeguard.git
+cd Tradeguard
+```
+
+Create and activate a virtual environment:
+
+```
 python3 -m venv .venv
 source .venv/bin/activate
+```
+
+Install dependencies:
+
+```
 python -m pip install -r requirements.txt
+```
+
+Create your local environment file:
+
+```
 cp -n .env.example .env
 ```
 
-Edit `.env` locally. Replace the API-key and account-ID placeholders with your
-own values, and keep the file private. Do not commit `.env`, share account or
-position identifiers, or paste credentials into logs or support requests.
-`DISCORD_WEBHOOK_URL` is optional; leave it empty to disable Discord alerts.
+Edit `.env` and add your own API credentials and account configuration.
+
+**Never commit your `.env` file or expose API keys, account identifiers, Discord webhooks, or local trading-state files.**
 
 ## Configuration
 
-| Variable | Purpose | Default/example |
-| --- | --- | --- |
-| `MFP_BASE_URL` | API endpoint; this version of the automatic watcher requires the live endpoint | `https://developers.myfundedperpetuals.com` |
-| `MFP_API_KEY` | API bearer credential | Required; keep private |
-| `AUTO_SL_ACCOUNT_ID` | Exact account scope for `auto_sl.py` | Required; keep private |
-| `DISCORD_WEBHOOK_URL` | Optional Discord alert webhook | Empty (disabled) |
-| `SL_PERCENT` | Initial stop distance as a percentage | `1` |
-| `CHECK_INTERVAL` | Watch interval in seconds; the code enforces a 15-second minimum | `30` |
-| `BREAKEVEN_R` | Profit threshold for break-even management, in R | `1` |
-| `TRAILING_ACTIVATION_R` | Profit threshold to activate trailing, in R | `2` |
-| `TRAILING_DISTANCE_R` | Trailing distance, in R | `1` |
-| `DRY_RUN` | Required as `true` by the read-only monitor and one-shot tool | `true` |
-| `AUTO_SL_EXECUTE` | Additional live-write lock for `auto_sl.py` | `false` |
-| `AUTO_SL_UNATTENDED` | Additional unattended-start lock when used with the service runner | `false` |
+Tradeguard uses environment variables for its configuration.
 
-## Running
+| Variable                | Description                             | Default        |
+| ----------------------- | --------------------------------------- | -------------- |
+| `MFP_BASE_URL`          | MyFundedPerps API endpoint              | Developers API |
+| `MFP_API_KEY`           | API authentication key                  | Required       |
+| `AUTO_SL_ACCOUNT_ID`    | Account monitored by the watcher        | Required       |
+| `DISCORD_WEBHOOK_URL`   | Optional Discord notification webhook   | Disabled       |
+| `SL_PERCENT`            | Initial stop distance percentage        | `1`            |
+| `CHECK_INTERVAL`        | Watcher interval in seconds             | `30`           |
+| `BREAKEVEN_R`           | Break-even activation threshold         | `1`            |
+| `TRAILING_ACTIVATION_R` | Trailing-stop activation threshold      | `2`            |
+| `TRAILING_DISTANCE_R`   | Trailing distance in R                  | `1`            |
+| `DRY_RUN`               | Read-only safety setting                | `true`         |
+| `AUTO_SL_EXECUTE`       | Additional live-execution authorization | `false`        |
+| `AUTO_SL_UNATTENDED`    | Unattended execution authorization      | `false`        |
 
-The monitor is read-only and requires `DRY_RUN=true`:
+The watcher enforces a minimum polling interval of 15 seconds.
 
-```sh
+## Running Tradeguard
+
+### 1. Read-only monitoring
+
+Start with the read-only monitor:
+
+```
 python main.py
+```
+
+For continuous monitoring:
+
+```
 python main.py --watch
 ```
 
-The automatic watcher is also read-only unless both its command-line and
-environment safeguards permit writes. Without `--execute`, it prints a
-read-only status:
+The monitor requires `DRY_RUN=true` and does not submit trading orders.
 
-```sh
+### 2. Automated stop management
+
+Start the watcher without enabling live execution:
+
+```
 python auto_sl.py
 ```
 
-Do not enable live writes or unattended operation unless you understand the
-consequences and have independently confirmed your account's rules. In
-interactive execution mode the program requires an additional typed
-confirmation. Unattended execution requires separate explicit environment
-authorization. Never deploy the systemd example without reviewing its
-`ExecStart` and the corresponding environment file permissions.
+Live execution requires the appropriate command-line and environment safeguards. Interactive execution also requires typed confirmation. Unattended execution has an additional authorization setting.
 
-The one-shot utility defaults to preview-only behavior and requires a position
-ID. The script has a separate execution flag, an additional environment
-safeguard, and a typed confirmation before its single live write:
+Do not enable live execution until you understand the implementation and have independently verified that your account permits automated order management.
 
-```sh
-python one_shot_sl.py --position-id YOUR_LOCAL_POSITION_ID
+### 3. One-time stop placement
+
+The one-shot utility defaults to preview-only operation:
+
+```
+python one_shot_sl.py --position-id YOUR_POSITION_ID
 ```
 
-`get_position_id.py` queries the API and prints account and position IDs. Run
-it only in a private terminal and do not share its output.
+Live placement requires its separate execution safeguards and confirmation.
 
-## Tests
+## Stop Management Logic
 
-Run the automated test suite without making API calls:
+Tradeguard supports configurable R-based stop management.
 
-```sh
+Example default configuration:
+
+- Initial stop distance: 1%
+- Break-even activation: 1R
+- Trailing-stop activation: 2R
+- Trailing distance: 1R
+
+These are configuration defaults, not guaranteed risk limits or recommendations.
+
+## Safety Architecture
+
+Tradeguard includes safeguards designed to reduce unsafe automated order modifications:
+
+- Exact account scoping.
+- Position-side validation.
+- Protective stop association checks.
+- Position-size verification.
+- Market tick-size-aware stop calculations.
+- Fresh account snapshots before live modifications.
+- Price checks before modifying stops.
+- Persistent records of attempted writes.
+- Manual-review requirements after uncertain API outcomes.
+- Safety halts when important account or order information cannot be verified.
+
+A working order is not automatically considered valid protection. Its relationship to the open position must be verified.
+
+## Testing
+
+Run the automated test suite:
+
+```
 python -m unittest discover -s tests -v
 ```
 
-The tests use mocked API interactions and temporary state files. They do not
-test live exchange behavior.
+The tests use mocked API interactions and temporary state files.
 
-## Local state and deployment
+**Important:** Passing automated tests does not establish that live exchange execution is safe or reliable. Live API behavior, order acceptance, and platform-specific rules require separate controlled validation.
 
-The watcher writes `auto_sl_attempts.json` and `auto_sl_state.json` beside its
-source file. These files can contain trading-related runtime state and are
-excluded from Git. Back up and protect them locally; do not upload them. The
-same exclusion applies to local logs, credentials, virtual environments, and
-editor settings.
+## Runtime State and Security
 
-`deploy/auto-sl.service` is a Linux systemd example, not a LaunchAgent
-configuration. Do not replace or restart any existing production service as
-part of installing or testing this repository.
+Tradeguard creates local runtime files:
+
+- `auto_sl_attempts.json`
+- `auto_sl_state.json`
+
+These files help prevent repeated attempts after uncertain order operations and maintain stop-management state.
+
+Credentials, runtime state, logs, virtual environments, and local editor settings should remain private and are excluded from Git.
+
+## Roadmap
+
+- Read-only account and position monitoring
+- Initial stop-loss calculations
+- Break-even management
+- Trailing-stop management
+- Protective order validation
+- Execution safeguards and persistent attempt tracking
+- Automated tests for selected management logic
+- Further validation against live API behavior in a controlled environment
+- Expand API compatibility and error-handling coverage
+- Improve configuration and user documentation
+- Explore additional notification and monitoring integrations
+
+## Disclaimer
+
+Tradeguard is an independent community-built project and is not an official MyFundedPerps product.
+
+It is a technical automation tool, not financial advice. Automated stop-loss systems cannot eliminate trading risk, slippage, outages, rejected orders, or unexpected market conditions. Traders remain responsible for monitoring their positions and understanding their provider's rules.
