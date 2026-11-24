@@ -2,13 +2,13 @@
 import argparse
 import json
 import os
-import time
 from datetime import datetime
 from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, InvalidOperation
 from urllib.parse import quote
 
 import requests
 from dotenv import load_dotenv
+from account_stream import watch_accounts
 
 LIVE = 'https://developers.myfundedperpetuals.com'
 SANDBOX = 'https://sandbox.myfundedperpetuals.com'
@@ -173,6 +173,7 @@ def scan(client, percentage):
     accounts = pages(client, '/v1/accounts', {}, paginated=False)
     markets = pages(client, '/v1/markets', {}, paginated=False)
     by_market = {m.get('market_id'): m for m in markets if isinstance(m, dict)}
+    active = False
     print('Accounts:', len(accounts))
     for account in accounts:
         aid = account.get('id')
@@ -183,8 +184,10 @@ def scan(client, percentage):
             positions = pages(client, '/v1/positions', {'account_id': aid, 'status':'open'}, paginated=False)
             orders = pages(client, '/v1/orders', {'account_id': aid, 'status':'working', 'limit':100})
         except (requests.RequestException, ValueError) as exc:
+            active = True
             print('Account scan failed. SL status UNKNOWN:', type(exc).__name__)
             continue
+        active |= bool(positions)
         print('Account ending', str(aid)[-4:], '| positions:',len(positions),'| working orders:',len(orders))
         for p in positions:
             symbol, side = p.get('symbol','?'), p.get('side','?')
@@ -223,6 +226,7 @@ def scan(client, percentage):
             except (KeyError, TypeError, ValueError, InvalidOperation, requests.RequestException) as exc:
                 print('     SKIP preview; manual review:',type(exc).__name__,str(exc)[:130])
     print('READ ONLY — no trade requests sent')
+    return active
 
 
 def main():
@@ -247,19 +251,19 @@ def main():
         raise SystemExit('Invalid risk or interval config')
     client = Client(url, key)
     print('MyFundedPerps v3 — READ ONLY — never sends PUT/POST/PATCH/DELETE')
-    while True:
-        print('\nScan',datetime.now().isoformat(timespec='seconds'))
-        try:
-            scan(client, percentage)
-        except (requests.RequestException, ValueError) as exc:
-            print('Scan incomplete; protection UNKNOWN:', type(exc).__name__)
-        if not args.watch:
-            break
-        try:
-            time.sleep(interval)
-        except KeyboardInterrupt:
-            print('\nStopped')
-            break
+    active = True
+    triggers = watch_accounts(key, None, interval, lambda: active) if args.watch else (None,)
+    try:
+        for _ in triggers:
+            print('\nScan', datetime.now().isoformat(timespec='seconds'))
+            try:
+                active = scan(client, percentage)
+            except (requests.RequestException, ValueError) as exc:
+                active = True
+                print('Scan incomplete; protection UNKNOWN:', type(exc).__name__)
+    except KeyboardInterrupt:
+        print('\nStopped')
+
 
 
 if __name__ == '__main__':

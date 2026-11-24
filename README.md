@@ -86,7 +86,7 @@ Tradeguard uses environment variables for its configuration.
 | `AUTO_SL_ACCOUNT_ID`    | Account monitored by the watcher        | Required       |
 | `DISCORD_WEBHOOK_URL`   | Optional Discord notification webhook   | Disabled       |
 | `SL_PERCENT`            | Initial stop distance percentage        | `1`            |
-| `CHECK_INTERVAL`        | Watcher interval in seconds             | `30`           |
+| `CHECK_INTERVAL`        | Active review interval in seconds             | `30`           |
 | `BREAKEVEN_R`           | Break-even activation threshold         | `1`            |
 | `TRAILING_ACTIVATION_R` | Trailing-stop activation threshold      | `2`            |
 | `TRAILING_DISTANCE_R`   | Trailing distance in R                  | `1`            |
@@ -94,7 +94,9 @@ Tradeguard uses environment variables for its configuration.
 | `AUTO_SL_EXECUTE`       | Additional live-execution authorization | `false`        |
 | `AUTO_SL_UNATTENDED`    | Unattended execution authorization      | `false`        |
 
-The watcher enforces a minimum polling interval of 15 seconds.
+Both continuous monitors listen to the authenticated [account WebSocket stream](https://docs.myfundedperpetuals.com/account-streaming.md). A completed snapshot or relevant account event triggers a REST review. The automated watcher filters events to the configured account. Quiet, empty accounts generate no scheduled scans. While positions or working orders need review, the watcher also checks at `CHECK_INTERVAL` (minimum 15 seconds) so price changes can activate break-even and trailing stops.
+
+After a disconnect, monitoring pauses while the watcher reconnects and obtains a fresh snapshot. REST reads still verify current positions, orders, and quotes before order changes.
 
 ## Running Tradeguard
 

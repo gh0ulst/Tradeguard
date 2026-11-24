@@ -18,6 +18,7 @@ from urllib.parse import quote
 
 import requests
 from dotenv import load_dotenv
+from account_stream import watch_accounts
 from main import (
     Client, LIVE, pages, get_single, proposed_stop, dec, matching_stop,
     protective_stops,
@@ -885,11 +886,14 @@ def run():
           config['activation_r'], 'R | trailing distance:', config['distance_r'],
           'R | interval:', interval)
     try:
-        while True:
+        active = True
+        for _ in watch_accounts(key, ACCOUNT_ID, interval, lambda: active):
+            active = True
             print('\nScan', datetime.now().isoformat(timespec='seconds'))
             api_error_seen = False
             try:
                 positions, orders = account_snapshot(client, ACCOUNT_ID)
+                active = bool(positions or orders)
                 print('Positions', len(positions), '| working orders', len(orders))
                 for p in positions:
                     try:
@@ -945,7 +949,6 @@ def run():
                 print('Scan incomplete; no orders submitted during failed account read:', str(exc)[:200])
             if not api_error_seen:
                 NOTIFIER.resolve_api_errors()
-            time.sleep(interval)
     except KeyboardInterrupt:
         print('\nStopped')
 
